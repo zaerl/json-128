@@ -1,5 +1,7 @@
 set(TEST_SOURCES
     attractor/attractor.c
+    encoding.c
+    parse-json.c
     test.c
     version.c
 )

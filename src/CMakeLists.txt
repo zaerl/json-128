@@ -1,4 +1,5 @@
 set(SOURCES
+    json-128.c
     version.c
 )
 

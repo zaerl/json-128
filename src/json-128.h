@@ -15,6 +15,10 @@
 #error "Windows is not supported"
 #endif
 
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,6 +36,37 @@ extern "C" {
 #ifndef J128_EXPORT
 #define J128_EXPORT __attribute__((visibility("default")))
 #endif
+
+/**
+ * A unicode codepoint, a value in the range 0 to 0x10FFFF
+ * [see: https://www.unicode.org/glossary/#code_point]
+ */
+typedef uint32_t mjb_codepoint;
+
+#define J128_CODEPOINT_MIN         0x0
+#define J128_CODEPOINT_MAX         0x10FFFF // Maximum valid unicode code point
+#define J128_CODEPOINT_REPLACEMENT 0xFFFD   // The character used when there is invalid data
+#define J128_CODEPOINT_NOT_VALID   0x110000 // Not a valid codepoint
+
+#define J128_HUGE_NUMBERS_FAIL         0x00000001
+#define J128_NOT_VALID_UNICODE_REPLACE 0x00000002
+#define J128_NOT_VALID_UNICODE_FAIL    0x00000004
+#define J128_UTF8_BOM_FAIL             0x00000008
+
+typedef enum j128_encoding {
+    J128_ENCODING_ERROR,
+    J128_ENCODING_ASCII,
+    J128_ENCODING_UTF_8,
+    J128_ENCODING_UTF_16_BE,
+    J128_ENCODING_UTF_16_LE,
+    J128_ENCODING_UTF_32_BE,
+    J128_ENCODING_UTF_32_LE
+} j128_encoding;
+
+// Return the string encoding (the most probable)
+j128_encoding j128_encoding_from_bom(const char *buffer, size_t length, int *start);
+
+bool j128_parse_json(const char *json, size_t size, int flags);
 
 // Output the current library version (J128_VERSION)
 char *j128_version(void);

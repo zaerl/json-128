@@ -20,6 +20,8 @@ extern "C" {
 
 // Start tests declarations.
 void *test_version(void *arg);
+void *test_encoding(void *arg);
+void *test_parse_json(void *arg);
 
 #ifdef __cplusplus
 }
