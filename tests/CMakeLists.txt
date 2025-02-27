@@ -3,6 +3,7 @@ set(TEST_SOURCES
     encoding.c
     parse-json.c
     test.c
+    unicode.c
     version.c
 )
 

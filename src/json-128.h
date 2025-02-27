@@ -41,7 +41,9 @@ extern "C" {
  * A unicode codepoint, a value in the range 0 to 0x10FFFF
  * [see: https://www.unicode.org/glossary/#code_point]
  */
-typedef uint32_t mjb_codepoint;
+typedef uint32_t j128_codepoint;
+
+typedef void (*j128_codepoint_callback)(size_t index, size_t string_index, j128_codepoint codepoint);
 
 #define J128_CODEPOINT_MIN         0x0
 #define J128_CODEPOINT_MAX         0x10FFFF // Maximum valid unicode code point
@@ -63,10 +65,17 @@ typedef enum j128_encoding {
     J128_ENCODING_UTF_32_LE
 } j128_encoding;
 
+typedef struct j128 {
+    j128_codepoint_callback codepoint_callback;
+} j128;
+
 // Return the string encoding (the most probable)
 j128_encoding j128_encoding_from_bom(const char *buffer, size_t length, int *start);
 
-bool j128_parse_json(const char *json, size_t size, int flags);
+bool j128_parse_json(const char *json, size_t size, int flags, j128 *additional_data);
+
+bool j128_parse_json_utf8(const char *json, size_t size, int flags, j128 *additional_data);
+bool j128_parse_json_utf16(const uint16_t *json, size_t size, bool big_endian, int flags, j128 *additional_data);
 
 // Output the current library version (J128_VERSION)
 char *j128_version(void);

@@ -94,6 +94,7 @@ int main(int argc, char * const argv[]) {
     // Start tests declarations.
     RUN_TEST(encoding)
     RUN_TEST(parse_json)
+    RUN_TEST(unicode)
     RUN_TEST(version)
 
     unsigned int tests_valid = att_get_valid_tests();

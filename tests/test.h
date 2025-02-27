@@ -19,9 +19,10 @@ extern "C" {
 #endif
 
 // Start tests declarations.
-void *test_version(void *arg);
 void *test_encoding(void *arg);
 void *test_parse_json(void *arg);
+void *test_unicode(void *arg);
+void *test_version(void *arg);
 
 #ifdef __cplusplus
 }

@@ -65,14 +65,15 @@ J128_EXPORT j128_encoding j128_encoding_from_bom(const char *buffer, size_t leng
     return bom_encoding;
 }
 
-J128_EXPORT bool j128_parse_json_utf8(const char *json, size_t size, int flags) {
+J128_EXPORT bool j128_parse_json_utf8(const char *json, size_t size, int flags, j128 *additional_data) {
     if(json == NULL || size == 0) {
         return false;
     }
 
     uint8_t state = J128_UTF8_ACCEPT;
-    mjb_codepoint current_codepoint;
+    j128_codepoint current_codepoint;
     const char *index = json;
+    size_t string_index = 0;
 
     // Loop through the string.
     for(; *index && (size_t)(index - json) < size; ++index) {
@@ -101,12 +102,20 @@ J128_EXPORT bool j128_parse_json_utf8(const char *json, size_t size, int flags) 
         if(state != J128_UTF8_ACCEPT) {
             continue;
         }
+
+        // Call the callback and continue.
+        if(additional_data->codepoint_callback != NULL) {
+            additional_data->codepoint_callback(index - json, string_index, current_codepoint);
+            ++string_index;
+
+            continue;
+        }
     }
 
     return state == J128_UTF8_ACCEPT;
 }
 
-J128_EXPORT bool j128_parse_json_utf16(const char *json, size_t size, bool big_endian, int flags) {
+J128_EXPORT bool j128_parse_json_utf16(const uint16_t *json, size_t size, bool big_endian, int flags, j128 *additional_data) {
     if(json == NULL || size == 0) {
         return false;
     }
@@ -117,14 +126,14 @@ J128_EXPORT bool j128_parse_json_utf16(const char *json, size_t size, bool big_e
     }
 
     uint8_t state = J128_UTF16_ACCEPT;
-    mjb_codepoint current_codepoint;
-    const uint16_t *utf16_str = (const uint16_t *)json;
+    j128_codepoint current_codepoint;
     size_t utf16_len = size / 2;
+    size_t string_index = 0;
 
     // Loop through the string.
     for(size_t i = 0; i < utf16_len; ++i) {
         // Get next code unit and decode.
-        state = j128_utf16_decode_step(state, utf16_str[i], &current_codepoint, big_endian);
+        state = j128_utf16_decode_step(state, json[i], &current_codepoint, big_endian);
 
         if(state == J128_UTF16_REJECT) {
             // The string is not well-formed.
@@ -145,12 +154,18 @@ J128_EXPORT bool j128_parse_json_utf16(const char *json, size_t size, bool big_e
         if(state != J128_UTF16_ACCEPT) {
             continue;
         }
+
+        // Call the callback.
+        if(additional_data->codepoint_callback != NULL) {
+            additional_data->codepoint_callback(i, string_index, current_codepoint);
+            ++string_index;
+        }
     }
 
     return state == J128_UTF16_ACCEPT;
 }
 
-J128_EXPORT bool j128_parse_json(const char *json, size_t size, int flags) {
+J128_EXPORT bool j128_parse_json(const char *json, size_t size, int flags, j128 *additional_data) {
     if(json == NULL || size == 0) {
         return false;
     }
@@ -165,6 +180,6 @@ J128_EXPORT bool j128_parse_json(const char *json, size_t size, int flags) {
     size_t real_size = size - start;
 
     return encoding == J128_ENCODING_UTF_8 ?
-        j128_parse_json_utf8(json + start, real_size, flags) :
-        j128_parse_json_utf16(json + start, real_size, encoding == J128_ENCODING_UTF_16_BE, flags);
+        j128_parse_json_utf8(json + start, real_size, flags, additional_data) :
+        j128_parse_json_utf16(json + start, real_size, encoding == J128_ENCODING_UTF_16_BE, flags, additional_data);
 }
