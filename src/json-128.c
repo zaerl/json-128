@@ -104,8 +104,8 @@ J128_EXPORT bool j128_parse_json_utf8(const char *json, size_t size, int flags, 
         }
 
         // Call the callback and continue.
-        if(additional_data->codepoint_callback != NULL) {
-            additional_data->codepoint_callback(index - json, string_index, current_codepoint);
+        if(additional_data->tokenizer_callback != NULL) {
+            additional_data->tokenizer_callback(index - json, string_index, current_codepoint, j128_next_token(current_codepoint));
             ++string_index;
 
             continue;
@@ -115,7 +115,7 @@ J128_EXPORT bool j128_parse_json_utf8(const char *json, size_t size, int flags, 
     return state == J128_UTF8_ACCEPT;
 }
 
-J128_EXPORT bool j128_parse_json_utf16(const uint16_t *json, size_t size, bool big_endian, int flags, j128 *additional_data) {
+J128_EXPORT bool j128_parse_json_utf16(const char *json, size_t size, bool big_endian, int flags, j128 *additional_data) {
     if(json == NULL || size == 0) {
         return false;
     }
@@ -130,10 +130,12 @@ J128_EXPORT bool j128_parse_json_utf16(const uint16_t *json, size_t size, bool b
     size_t utf16_len = size / 2;
     size_t string_index = 0;
 
+    const uint16_t *utf16_json = (const uint16_t *)json;
+
     // Loop through the string.
     for(size_t i = 0; i < utf16_len; ++i) {
         // Get next code unit and decode.
-        state = j128_utf16_decode_step(state, json[i], &current_codepoint, big_endian);
+        state = j128_utf16_decode_step(state, utf16_json[i], &current_codepoint, big_endian);
 
         if(state == J128_UTF16_REJECT) {
             // The string is not well-formed.
@@ -156,8 +158,8 @@ J128_EXPORT bool j128_parse_json_utf16(const uint16_t *json, size_t size, bool b
         }
 
         // Call the callback.
-        if(additional_data->codepoint_callback != NULL) {
-            additional_data->codepoint_callback(i, string_index, current_codepoint);
+        if(additional_data->tokenizer_callback != NULL) {
+            additional_data->tokenizer_callback(i, string_index, current_codepoint, j128_next_token(current_codepoint));
             ++string_index;
         }
     }

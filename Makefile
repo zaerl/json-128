@@ -15,10 +15,13 @@ test: BUILD_TYPE = Test
 test: configure build
 	build/tests/json-128-test $(ARGS)
 
+lemon: configure build
+	build/tools/lemon tools/json.y -Ttools/lempar.c
+
 clean_build:
 	@cmake --build $(BUILD_DIR) --target clean
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) && rm -f tools/json.h tools/json.c tools/json.out
 
-.PHONY: all clean clean_build configure build test rebuild
+.PHONY: all clean clean_build configure build test rebuild lemon

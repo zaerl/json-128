@@ -1,7 +1,5 @@
 
 /**
- * 2024-02-16
- *
  * The attractor unit test library
  */
 
@@ -231,7 +229,9 @@ int att_assert(const char *format, int test, const char *description) {
                 att_columns = w.ws_col;
             }
 
-            att_show_colors = 1;
+            const char *term = getenv("TERM");
+            const char *no_color = getenv("NO_COLOR");
+            att_show_colors = no_color == NULL && term != NULL && strcmp(term, "dumb") != 0;
         }
     }
 

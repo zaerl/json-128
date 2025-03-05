@@ -21,7 +21,9 @@ extern "C" {
 // Start tests declarations.
 void *test_encoding(void *arg);
 void *test_parse_json(void *arg);
-void *test_unicode(void *arg);
+void *test_tokenizer(void *arg);
+void *test_unicode_utf8(void *arg);
+void *test_unicode_utf16(void *arg);
 void *test_version(void *arg);
 
 #ifdef __cplusplus

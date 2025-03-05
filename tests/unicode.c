@@ -9,49 +9,67 @@
 
 static j128_codepoint *codepoints;
 
-static void codepoint_callback(size_t index, size_t string_index, j128_codepoint codepoint) {
-    char str[32];
-    snprintf(str, sizeof(str), "Codepoint: %x at index %zu, string index %zu\n", codepoint, index, string_index);
+static void tokenizer_callback(size_t index, size_t string_index, j128_codepoint codepoint, j128_token token) {
+    char str[128];
+    snprintf(str, sizeof(str), "Codepoint 0x%x: %zu, %zu, %d\n", codepoint, index, string_index, token);
 
     ATT_ASSERT(codepoint, codepoints[index], str);
 }
 
-void *test_unicode(void *arg) {
-    j128 add = { .codepoint_callback = codepoint_callback };
+void *test_unicode_utf8(void *arg) {
+    j128 add = { .tokenizer_callback = tokenizer_callback };
+
+    #define J128_TEST_STRING(STR, LENGTH, REPLACE, DESCRIPTION) \
+        ATT_ASSERT(j128_parse_json_utf8(STR, LENGTH, 0, &add), true, DESCRIPTION ": but not by default"); \
+        ATT_ASSERT(j128_parse_json_utf8(STR, LENGTH, J128_NOT_VALID_UNICODE_FAIL, &add), false, DESCRIPTION); \
+        codepoints[REPLACE] = J128_CODEPOINT_REPLACEMENT; \
+        ATT_ASSERT(j128_parse_json_utf8(STR, LENGTH, J128_NOT_VALID_UNICODE_REPLACE, &add), true, DESCRIPTION ": replace");
+
+    #define J128_TEST_VALID_STRING(STR, LENGTH) \
+        ATT_ASSERT(j128_parse_json_utf8(STR, LENGTH, 0, &add), true, STR); \
+        ATT_ASSERT(j128_parse_json_utf8(STR, LENGTH, J128_NOT_VALID_UNICODE_FAIL, &add), true, STR " fail"); \
+        ATT_ASSERT(j128_parse_json_utf8(STR, LENGTH, J128_NOT_VALID_UNICODE_REPLACE, &add), true, STR " replace");
 
     // Test valid UTF-8 sequences
-    // Mixed ASCII and 2-byte sequences
-    // j128_parse_string(&add, "Café", 5);  // Codepoints: 67, 97, 102, 233
+    j128_codepoint cafe_test[] = { 0x43, 0x61, 0x66, 0x0, 0xE9 };
+    codepoints = (j128_codepoint*)cafe_test;
+    J128_TEST_VALID_STRING("Café", 5);
 
     // Mixed 2-byte and 3-byte sequences
-    // j128_parse_string(&add, "€uro ¥en", 9);  // Codepoints: 8364, 117, 114, 111, 32, 165, 101, 110
+    j128_codepoint euro_yen_test[] = { 0x0, 0x0, 0x20AC, 0x75, 0x72, 0x6F, 0x20, 0x0, 0xA5, 0x65, 0x6E };
+    codepoints = (j128_codepoint*)euro_yen_test;
+    J128_TEST_VALID_STRING("€uro ¥en", 11);
 
-    // Mixed sequences with emojis
-    // j128_parse_string(&add, "Hello 🌍 World!", 15);  // Codepoints: 72,101,108,108,111,32,127757,32,87,111,114,108,100,33
+    // Hello 🌍 World!
+    j128_codepoint hello_world_test[] = { 0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0x0, 0x0, 0x0, 0x1F30D, 0x20, 0x57, 0x6F, 0x72, 0x6C, 0x64, 0x21 };
+    codepoints = (j128_codepoint*)hello_world_test;
+    J128_TEST_VALID_STRING("Hello 🌍 World!", 17);
 
-    // Complex Unicode text with various scripts
-    // j128_parse_string(&add, "你好，世界！", 15);  // Codepoints: 20320, 22909, 65292, 19990, 30028, 65281
+    // ABC\xC3XYZ
+    j128_codepoint alphabet_test[] = { 0x41, 0x42, 0x43, 0x0, 0x0, 0x59, 0x5A };
+    codepoints = (j128_codepoint*)alphabet_test;
+    J128_TEST_STRING("ABC\xC3XYZ", 7, 4, "Fail after ABC");
 
-    // Test invalid UTF-8 sequences
-    // String with incomplete sequence in the middle
-    // j128_parse_string(&add, "ABC\xC3XYZ", 7);  // Should fail after "ABC"
+    #undef J128_TEST_STRING
+    #undef J128_TEST_VALID_STRING
 
-    j128_codepoint codepoints_test[] = { 65, 66, 67, 0, 0, 89, 90 };
-    codepoints = (j128_codepoint *)codepoints_test;
-    ATT_ASSERT(j128_parse_json_utf8("ABC\xC3XYZ", 7, 0, &add), true, "Fail after ABC, but not by default");
-    ATT_ASSERT(j128_parse_json_utf8("ABC\xC3XYZ", 7, J128_NOT_VALID_UNICODE_FAIL, &add), false, "Fail after ABC");
+    return NULL;
+}
 
-    codepoints_test[4] = J128_CODEPOINT_REPLACEMENT;
-    ATT_ASSERT(j128_parse_json_utf8("ABC\xC3XYZ", 7, J128_NOT_VALID_UNICODE_REPLACE, &add), true, "Replace after ABC");
+void *test_unicode_utf16(void *arg) {
+    j128 add = { .tokenizer_callback = tokenizer_callback };
 
-    // String with invalid continuation bytes
-    // j128_parse_string(&add, "Test\xC3\x28\x29", 8);  // Should fail after "Test"
+    #define J128_TEST_VALID_STRING(STR, LENGTH, BIG_ENDIAN, DESCRIPTION) \
+        ATT_ASSERT(j128_parse_json_utf16(STR, LENGTH, BIG_ENDIAN, 0, &add), true, DESCRIPTION);
 
-    // String with overlong encoding
-    // j128_parse_string(&add, "Start\xC0\xA4End", 10);  // Should fail after "Start"
+    // Test valid UTF-16 sequences
+    // Little-endian: "Hello 🌍 World!"
+    static const char le_hello[] = "\x48\x00\x65\x00\x6c\x00\x6c\x00\x6f\x00\x20\x00\x3c\xd8\x0d\xdf\x20\x00\x57\x00\x6f\x00\x72\x00\x6c\x00\x64\x00\x21\x00";
+    j128_codepoint hello_world_test[] = { 0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0x32, 0x1F30D, 0x20, 0x57, 0x6F, 0x72, 0x6C, 0x64, 0x21 };
+    codepoints = (j128_codepoint*)hello_world_test;
+    J128_TEST_VALID_STRING(le_hello, 30, false, "UTF-16LE Hello World");
 
-    // String with sequence exceeding Unicode range
-    // j128_parse_string(&add, "Begin\xF7\xBF\xBF\xBFStop", 12);  // Should fail after "Begin"
+    #undef J128_TEST_VALID_STRING
 
     return NULL;
 }
