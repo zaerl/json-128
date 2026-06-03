@@ -45,7 +45,6 @@ extern "C" {
 #define J128_HUGE_NUMBERS_FAIL         0x00000001
 #define J128_NOT_VALID_UNICODE_REPLACE 0x00000002
 #define J128_NOT_VALID_UNICODE_FAIL    0x00000004
-#define J128_UTF8_BOM_FAIL             0x00000008
 
 typedef enum j128_encoding {
     J128_ENCODING_ERROR,
@@ -57,25 +56,15 @@ typedef enum j128_encoding {
     J128_ENCODING_UTF_32_LE
 } j128_encoding;
 
-typedef enum j128_token {
-    J128_TOKEN_IGNORE,
-    J128_TOKEN_ERROR,
-    J128_TOKEN_EOF,
-    // Structural tokens
-    J128_TOKEN_LEFT_BRACE, // {
-    J128_TOKEN_RIGHT_BRACE, // }
-    J128_TOKEN_LEFT_BRACKET, // [
-    J128_TOKEN_RIGHT_BRACKET, // ]
-    J128_TOKEN_COMMA, // ,
-    J128_TOKEN_COLON, // :
-    // Literal tokens
-    J128_TOKEN_TRUE, // true
-    J128_TOKEN_FALSE, // false
-    J128_TOKEN_NULL, // null
-    // Number token
-    J128_TOKEN_NUMBER, // number
-    // String token
-    J128_TOKEN_STRING, // string
+#define J128_TOKEN_IGNORE -2
+#define J128_TOKEN_ERROR  -1
+#define J128_TOKEN_EOF     0
+#include "lemon-parser.h"
+
+typedef struct j128_token {
+    int type;
+    const char *token;
+    size_t n;
 } j128_token;
 
 /**
@@ -87,10 +76,15 @@ typedef uint32_t j128_codepoint;
 /**
  * A callback function that is called when a token is found
  */
-typedef void (*j128_tokenizer_callback)(size_t index, size_t string_index, j128_codepoint codepoint, j128_token token);
+typedef void (*j128_tokenizer_callback)(size_t index, size_t string_index, j128_codepoint codepoint, j128_token *token);
+
+#define J128_SYNTAX_ERROR 1
 
 typedef struct j128 {
     j128_tokenizer_callback tokenizer_callback;
+    j128_token current_token;
+    void *parser;
+    int error_code;
 } j128;
 
 // Return the string encoding (the most probable)
@@ -101,7 +95,7 @@ bool j128_parse_json(const char *json, size_t size, int flags, j128 *additional_
 bool j128_parse_json_utf8(const char *json, size_t size, int flags, j128 *additional_data);
 bool j128_parse_json_utf16(const char *json, size_t size, bool big_endian, int flags, j128 *additional_data);
 
-j128_token j128_next_token(j128_codepoint codepoint);
+bool j128_next_token(j128_codepoint codepoint, j128_token *token, j128 *additional_data);
 
 // Output the current library version (J128_VERSION)
 char *j128_version(void);

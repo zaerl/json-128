@@ -58,5 +58,5 @@ static inline uint8_t __used j128_utf8_decode_step(uint8_t state, uint8_t octet,
 	    ? (octet & (0xFFU >> class_type))
 	    : ((octet & 0x3FU) | (*cpp << 6)));
 
-	return (reject? 0xF : (0xF & (j128_utf8_statetab[class_type] >> (4 * (state & 7)))));
+	return (reject? J128_UTF8_REJECT : (0xF & (j128_utf8_statetab[class_type] >> (4 * (state & 7)))));
 }

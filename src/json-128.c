@@ -4,17 +4,35 @@
  * This file is distributed under the MIT License. See LICENSE for details.
  */
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "json-128.h"
-#include "utf8.h"
+#include "lemon-parser.c"
 #include "utf16.h"
+#include "utf8.h"
 
 #define J128_ENCODING_UTF_8_BOM "\xEF\xBB\xBF"
 #define J128_ENCODING_UTF_16_BE_BOM "\xFE\xFF"
 #define J128_ENCODING_UTF_16_LE_BOM "\xFF\xFE"
 #define J128_ENCODING_UTF_32_BE_BOM "\x00\x00\xFE\xFF"
 #define J128_ENCODING_UTF_32_LE_BOM "\xFF\xFE\x00\x00"
+
+bool init_parser(j128 *parser) {
+    parser->parser = j128_lemonAlloc(malloc, parser);
+
+    return true;
+}
+
+bool close_lemon(j128 *parser) {
+    if(parser->parser == NULL) {
+        return false;
+    }
+
+    j128_lemonFree(parser->parser, free);
+
+    return true;
+}
 
 /**
  * Return the encoding from the BOM (if possible).
@@ -74,6 +92,7 @@ J128_EXPORT bool j128_parse_json_utf8(const char *json, size_t size, int flags, 
     j128_codepoint current_codepoint;
     const char *index = json;
     size_t string_index = 0;
+    init_parser(additional_data);
 
     // Loop through the string.
     for(; *index && (size_t)(index - json) < size; ++index) {
@@ -83,6 +102,8 @@ J128_EXPORT bool j128_parse_json_utf8(const char *json, size_t size, int flags, 
         if(state == J128_UTF8_REJECT) {
             // The string is not well-formed.
             if(flags & J128_NOT_VALID_UNICODE_FAIL) {
+                close_lemon(additional_data);
+
                 // Fail the parsing.
                 return false;
             }
@@ -103,14 +124,21 @@ J128_EXPORT bool j128_parse_json_utf8(const char *json, size_t size, int flags, 
             continue;
         }
 
+        j128_token token;
+
+        bool result = j128_next_token(current_codepoint, &token, additional_data);
+
         // Call the callback and continue.
         if(additional_data->tokenizer_callback != NULL) {
-            additional_data->tokenizer_callback(index - json, string_index, current_codepoint, j128_next_token(current_codepoint));
+            additional_data->tokenizer_callback(index - json, string_index, current_codepoint, &additional_data->current_token);
             ++string_index;
-
-            continue;
         }
+
+        // j128_lemon(additional_data->parser, token, "");
     }
+
+    // j128_lemon(additional_data->parser, J128_TOKEN_EOF, "EOF");
+    close_lemon(additional_data);
 
     return state == J128_UTF8_ACCEPT;
 }
@@ -129,8 +157,8 @@ J128_EXPORT bool j128_parse_json_utf16(const char *json, size_t size, bool big_e
     j128_codepoint current_codepoint;
     size_t utf16_len = size / 2;
     size_t string_index = 0;
-
     const uint16_t *utf16_json = (const uint16_t *)json;
+    init_parser(additional_data);
 
     // Loop through the string.
     for(size_t i = 0; i < utf16_len; ++i) {
@@ -140,6 +168,7 @@ J128_EXPORT bool j128_parse_json_utf16(const char *json, size_t size, bool big_e
         if(state == J128_UTF16_REJECT) {
             // The string is not well-formed.
             if(flags & J128_NOT_VALID_UNICODE_FAIL) {
+                close_lemon(additional_data);
                 return false;
             }
 
@@ -157,12 +186,21 @@ J128_EXPORT bool j128_parse_json_utf16(const char *json, size_t size, bool big_e
             continue;
         }
 
+        j128_token token;
+
+        bool result = j128_next_token(current_codepoint, &token, additional_data);
+
         // Call the callback.
         if(additional_data->tokenizer_callback != NULL) {
-            additional_data->tokenizer_callback(i, string_index, current_codepoint, j128_next_token(current_codepoint));
+            additional_data->tokenizer_callback(i, string_index, current_codepoint, &additional_data->current_token);
             ++string_index;
         }
+
+        // j128_lemon(additional_data->parser, token, "");
     }
+
+    // j128_lemon(additional_data->parser, J128_TOKEN_EOF, "EOF");
+    close_lemon(additional_data);
 
     return state == J128_UTF16_ACCEPT;
 }

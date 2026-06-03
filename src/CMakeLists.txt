@@ -1,6 +1,6 @@
 set(SOURCES
     json-128.c
-    tokenizer.c
+    parser.c
     version.c
 )
 
